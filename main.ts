@@ -8,7 +8,8 @@ const existsCount = getInput("existsCount");
 const main = async () => {
 
     try {
-        const remainingCount = parseInt(existsCount);
+
+        const remainingCount = parseInt(existsCount) < 3 ? 3 : parseInt(existsCount);
         const spliter = ownerRepo.split('/');
         const owner = spliter[0];
         const repo = spliter[1];
@@ -21,10 +22,22 @@ const main = async () => {
 
         const resWorkflows = await appOctokit.rest.actions.listWorkflowRunsForRepo({
             owner,
-            repo
+            repo,
+            per_page: 100
         });
 
         const counter = resWorkflows.data.total_count;
+
+        if (counter > 100) {
+            info("The workflow spans multiple pages.");
+            info("Canceling the process because it may erase the latest workflow.");
+            return;
+        }
+
+        if (counter - remainingCount < 0) {
+            info("I won't do it because the number of workflows is small.");
+            return;
+        }
 
         info("*** listWorkflowRunsForRepo:  End ***" + "\r\n");
         info("*** WorkflowRuns count:" +  counter.toString() + " ***" + "\r\n");
@@ -37,25 +50,23 @@ const main = async () => {
             return 0;
         });
 
-
         info("*** Sorted Workflows:Start ***" + "\r\n");
         sortedWorkflows.forEach(function(workflow){
             info("id:" + workflow.id.toString() + "\r\n" + "update_at:" + workflow.updated_at + "\r\n")
         });  
         info("*** Sorted Workflows:  End ***" + "\r\n");
-
  
         info("*** Delete Workflows Count:" + (counter - remainingCount).toString() + " ***");
 
         info("*** listWorkflowsArray Loop:Start ***");
-
+        
         for (let i = 0; i < counter - remainingCount; i++) {
 
             const run_id : number= sortedWorkflows[i].id;
             info("id:" + run_id.toString());
             info("update_at:" + sortedWorkflows[i].updated_at + "\r\n" || "null" + "\r\n");
         
-            await appOctokit.rest.actions.deleteWorkflowRunLogs({
+            await appOctokit.rest.actions.deleteWorkflowRun({
                 owner,
                 repo,
                 run_id

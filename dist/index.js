@@ -9378,7 +9378,7 @@ var main = function () { return __awaiter(void 0, void 0, void 0, function () {
         switch (_a.label) {
             case 0:
                 _a.trys.push([0, 6, , 7]);
-                remainingCount = parseInt(existsCount);
+                remainingCount = parseInt(existsCount) < 3 ? 3 : parseInt(existsCount);
                 spliter = ownerRepo.split('/');
                 owner = spliter[0];
                 repo = spliter[1];
@@ -9388,11 +9388,21 @@ var main = function () { return __awaiter(void 0, void 0, void 0, function () {
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** listWorkflowRunsForRepo:Start ***");
                 return [4 /*yield*/, appOctokit.rest.actions.listWorkflowRunsForRepo({
                         owner: owner,
-                        repo: repo
+                        repo: repo,
+                        per_page: 100
                     })];
             case 1:
                 resWorkflows = _a.sent();
                 counter = resWorkflows.data.total_count;
+                if (counter > 100) {
+                    (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("The workflow spans multiple pages.");
+                    (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("Canceling the process because it may erase the latest workflow.");
+                    return [2 /*return*/];
+                }
+                if (counter - remainingCount < 0) {
+                    (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("I won't do it because the number of workflows is small.");
+                    return [2 /*return*/];
+                }
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** listWorkflowRunsForRepo:  End ***" + "\r\n");
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** WorkflowRuns count:" + counter.toString() + " ***" + "\r\n");
                 sortedWorkflows = resWorkflows.data.workflow_runs.sort(function (a, b) {
@@ -9420,7 +9430,7 @@ var main = function () { return __awaiter(void 0, void 0, void 0, function () {
                 run_id = sortedWorkflows[i].id;
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("id:" + run_id.toString());
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("update_at:" + sortedWorkflows[i].updated_at + "\r\n" || 0);
-                return [4 /*yield*/, appOctokit.rest.actions.deleteWorkflowRunLogs({
+                return [4 /*yield*/, appOctokit.rest.actions.deleteWorkflowRun({
                         owner: owner,
                         repo: repo,
                         run_id: run_id
