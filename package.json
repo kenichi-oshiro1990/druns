@@ -1,0 +1,28 @@
+{
+  "name": "druns",
+  "author": "",
+  "license": "MIT",
+  "version": "0.0.0",
+  "type": "module",
+  "files": [
+    "action.yml",
+    "dist"
+  ],
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "@actions/github": "^5.1.1",
+    "@octokit/auth-app": "^4.0.7",
+    "@octokit/rest": "^19.0.5"
+  },
+  "devDependencies": {
+    "@zeit/ncc": "^0.22.3",
+    "prettier": "^1.19.1"
+  },
+  "scripts": {
+    "build": "tsc",
+    "format": "prettier --write \"{src,test}/**/{*.ts,*.tsx,*.js,*.jsx}\"",
+    "format:check": "prettier --check \"{src,test}/**/{*.ts,*.tsx,*.js,*.jsx}\"",
+    "pack": "ncc build -m",
+    "all": "npm run format && npm run lint && npm test && npm run build && npm run pack"
+}
+}

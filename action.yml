@@ -1,0 +1,16 @@
+name: 'delete artifacts'
+description: 'Greet someone and record the time'
+inputs:
+  token:
+    description: 'authenticated token'
+    required: true
+  ownerRepo:
+    description: 'Set a slash-separated value for owner and repository.'
+    required: true
+  existsCount:
+    description: 'Specifies the number left in the uploaded artifacts.'
+    required: false
+    default: "1"
+runs:
+  using: node16
+  main: dist/index.js
