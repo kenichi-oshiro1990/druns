@@ -1,5 +1,5 @@
-name: 'delete artifacts'
-description: 'Greet someone and record the time'
+name: 'delete workflowlogs'
+description: 'delete workflow'
 inputs:
   token:
     description: 'authenticated token'
@@ -10,7 +10,7 @@ inputs:
   existsCount:
     description: 'Specifies the number left in the uploaded artifacts.'
     required: false
-    default: "1"
+    default: "5"
 runs:
   using: node16
   main: dist/index.js
