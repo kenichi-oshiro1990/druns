@@ -9372,12 +9372,13 @@ var __generator = (undefined && undefined.__generator) || function (thisArg, bod
 var authToken = (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)("token");
 var ownerRepo = (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)("ownerRepo");
 var existsCount = (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)("existsCount");
+var per_page = 100;
 var main = function () { return __awaiter(void 0, void 0, void 0, function () {
-    var remainingCount, spliter, owner, repo, appOctokit, resWorkflows, counter, sortedWorkflows, i, run_id, error_1;
+    var remainingCount, spliter, owner, repo, appOctokit, resWorkflows, counter, forCounter, mergeWorkflow_1, i, resNextPageWorkflows, sortedWorkflows, i, run_id, error_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 6, , 7]);
+                _a.trys.push([0, 11, , 12]);
                 remainingCount = parseInt(existsCount) < 3 ? 3 : parseInt(existsCount);
                 spliter = ownerRepo.split('/');
                 owner = spliter[0];
@@ -9389,66 +9390,89 @@ var main = function () { return __awaiter(void 0, void 0, void 0, function () {
                 return [4 /*yield*/, appOctokit.rest.actions.listWorkflowRunsForRepo({
                         owner: owner,
                         repo: repo,
-                        per_page: 100
+                        per_page: per_page
                     })];
             case 1:
                 resWorkflows = _a.sent();
-                counter = resWorkflows.data.total_count;
-                if (counter > 100) {
-                    (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("The workflow spans multiple pages.");
-                    (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("Canceling the process because it may erase the latest workflow.");
-                    return [2 /*return*/];
-                }
-                if (counter - remainingCount < 0) {
-                    (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("I won't do it because the number of workflows is small.");
-                    return [2 /*return*/];
-                }
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** listWorkflowRunsForRepo:  End ***" + "\r\n");
+                counter = resWorkflows.data.total_count;
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** WorkflowRuns count:" + counter.toString() + " ***" + "\r\n");
-                sortedWorkflows = resWorkflows.data.workflow_runs.sort(function (a, b) {
-                    if (a.updated_at === null)
+                if (counter <= 1) {
+                    (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("Processing will be canceled because it will delete its own Workflow.");
+                    return [2 /*return*/];
+                }
+                forCounter = Math.floor(counter / per_page) + (counter % per_page > 0 ? 1 : 0);
+                mergeWorkflow_1 = new Array();
+                return [4 /*yield*/, resWorkflows.data.workflow_runs.forEach(function (value) {
+                        var item = { id: value.id, updatedAt: value.updated_at };
+                        mergeWorkflow_1.push(item);
+                    })];
+            case 2:
+                _a.sent();
+                i = 2;
+                _a.label = 3;
+            case 3:
+                if (!(i <= forCounter)) return [3 /*break*/, 6];
+                return [4 /*yield*/, appOctokit.rest.actions.listWorkflowRunsForRepo({
+                        owner: owner,
+                        repo: repo,
+                        per_page: per_page,
+                        page: i
+                    })];
+            case 4:
+                resNextPageWorkflows = _a.sent();
+                resNextPageWorkflows.data.workflow_runs.forEach(function (value) {
+                    var item = { id: value.id, updatedAt: value.updated_at };
+                    mergeWorkflow_1.push(item);
+                });
+                _a.label = 5;
+            case 5:
+                i++;
+                return [3 /*break*/, 3];
+            case 6:
+                sortedWorkflows = mergeWorkflow_1.sort(function (a, b) {
+                    if (a.updatedAt === null)
                         return 0;
-                    if (b.updated_at === null)
+                    if (b.updatedAt === null)
                         return 0;
-                    if (a.updated_at > b.updated_at)
+                    if (a.updatedAt > b.updatedAt)
                         return 1;
-                    if (a.updated_at < b.updated_at)
+                    if (a.updatedAt < b.updatedAt)
                         return -1;
                     return 0;
                 });
-                (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** Sorted Workflows:Start ***" + "\r\n");
+                (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** Sorted Workflows:Start ***");
                 sortedWorkflows.forEach(function (workflow) {
-                    (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("id:" + workflow.id.toString() + "\r\n" + "update_at:" + workflow.updated_at + "\r\n");
+                    (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("id: " + workflow.id.toString() + "\t" + "update_at: " + workflow.updatedAt);
                 });
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** Sorted Workflows:  End ***" + "\r\n");
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** Delete Workflows Count:" + (counter - remainingCount).toString() + " ***");
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** listWorkflowsArray Loop:Start ***");
                 i = 0;
-                _a.label = 2;
-            case 2:
-                if (!(i < counter - remainingCount)) return [3 /*break*/, 5];
+                _a.label = 7;
+            case 7:
+                if (!(i < counter - remainingCount)) return [3 /*break*/, 10];
                 run_id = sortedWorkflows[i].id;
-                (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("id:" + run_id.toString());
-                (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("update_at:" + sortedWorkflows[i].updated_at + "\r\n" || 0);
+                (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("id:" + run_id.toString() + "\t" + "update_at:" + sortedWorkflows[i].updatedAt || 0);
                 return [4 /*yield*/, appOctokit.rest.actions.deleteWorkflowRun({
                         owner: owner,
                         repo: repo,
                         run_id: run_id
                     })];
-            case 3:
+            case 8:
                 _a.sent();
-                _a.label = 4;
-            case 4:
+                _a.label = 9;
+            case 9:
                 i++;
-                return [3 /*break*/, 2];
-            case 5:
-                (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** listWorkflowsArray Loop:  End ***" + "\r\n");
                 return [3 /*break*/, 7];
-            case 6:
+            case 10:
+                (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.info)("*** listWorkflowsArray Loop:  End ***" + "\r\n");
+                return [3 /*break*/, 12];
+            case 11:
                 error_1 = _a.sent();
                 (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.setFailed)(error_1.message);
-                return [3 /*break*/, 7];
-            case 7: return [2 /*return*/];
+                return [3 /*break*/, 12];
+            case 12: return [2 /*return*/];
         }
     });
 }); };

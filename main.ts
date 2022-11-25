@@ -4,11 +4,11 @@ import { Octokit } from "@octokit/rest";
 const authToken = getInput("token");
 const ownerRepo = getInput("ownerRepo");
 const existsCount = getInput("existsCount");
+const per_page = 100;
 
 const main = async () => {
 
     try {
-
         const remainingCount = parseInt(existsCount) < 3 ? 3 : parseInt(existsCount);
         const spliter = ownerRepo.split('/');
         const owner = spliter[0];
@@ -23,36 +23,54 @@ const main = async () => {
         const resWorkflows = await appOctokit.rest.actions.listWorkflowRunsForRepo({
             owner,
             repo,
-            per_page: 100
+            per_page
         });
-
-        const counter = resWorkflows.data.total_count;
-
-        if (counter > 100) {
-            info("The workflow spans multiple pages.");
-            info("Canceling the process because it may erase the latest workflow.");
-            return;
-        }
-
-        if (counter - remainingCount < 0) {
-            info("I won't do it because the number of workflows is small.");
-            return;
-        }
-
         info("*** listWorkflowRunsForRepo:  End ***" + "\r\n");
+        
+        const counter = resWorkflows.data.total_count;
         info("*** WorkflowRuns count:" +  counter.toString() + " ***" + "\r\n");
 
-        const sortedWorkflows = resWorkflows.data.workflow_runs.sort(function (a, b) {
-            if (a.updated_at === null) return 0;
-            if (b.updated_at === null) return 0;
-            if (a.updated_at > b.updated_at) return 1;
-            if (a.updated_at < b.updated_at) return -1;
+        if (counter <= 1 ) {
+            info("Processing will be canceled because it will delete its own Workflow.");
+            return;
+        }
+
+        // ページ数の取得
+        // per_page = 100 で取っているので1ページに100Workflowが載ってくる。
+        const forCounter = Math.floor(counter/per_page) + (counter % per_page > 0 ? 1 : 0);
+
+        let mergeWorkflow : Array <WorkFlowItem> = new Array();
+        
+        await resWorkflows.data.workflow_runs.forEach(value => {
+            const item : WorkFlowItem = {id : value.id, updatedAt: value.updated_at}
+            mergeWorkflow.push(item);
+        })
+
+        for(let i = 2; i <= forCounter; i++){
+            const resNextPageWorkflows = await appOctokit.rest.actions.listWorkflowRunsForRepo({
+                owner,
+                repo,
+                per_page,
+                page : i
+            });
+
+            resNextPageWorkflows.data.workflow_runs.forEach(value => {
+                const item : WorkFlowItem = {id : value.id, updatedAt: value.updated_at}
+                mergeWorkflow.push(item);
+            }) 
+        }
+
+        const sortedWorkflows = mergeWorkflow.sort(function (a, b) {
+            if (a.updatedAt === null) return 0;
+            if (b.updatedAt === null) return 0;
+            if (a.updatedAt > b.updatedAt) return 1;
+            if (a.updatedAt < b.updatedAt) return -1;
             return 0;
         });
 
-        info("*** Sorted Workflows:Start ***" + "\r\n");
+        info("*** Sorted Workflows:Start ***");
         sortedWorkflows.forEach(function(workflow){
-            info("id:" + workflow.id.toString() + "\r\n" + "update_at:" + workflow.updated_at + "\r\n")
+            info("id: " + workflow.id.toString() + "\t" + "update_at: " + workflow.updatedAt)
         });  
         info("*** Sorted Workflows:  End ***" + "\r\n");
  
@@ -63,8 +81,7 @@ const main = async () => {
         for (let i = 0; i < counter - remainingCount; i++) {
 
             const run_id : number= sortedWorkflows[i].id;
-            info("id:" + run_id.toString());
-            info("update_at:" + sortedWorkflows[i].updated_at + "\r\n" || "null" + "\r\n");
+            info("id:" + run_id.toString() + "\t" + "update_at:" + sortedWorkflows[i].updatedAt || "null");
         
             await appOctokit.rest.actions.deleteWorkflowRun({
                 owner,
@@ -81,3 +98,8 @@ const main = async () => {
 };
 
 main();
+
+interface WorkFlowItem{
+    id : number,
+    updatedAt: string
+}
